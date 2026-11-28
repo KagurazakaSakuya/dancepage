@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>VRChat · 舞蹈统计</title>
+<style>
+:root{
+ --ink:#172b27;--muted:#516d63;--border:#d5e2db;--paper:#fff;--green:#145643;--mint:#e9f4ee;
+ --pypy:#1f5c78;--pypy-soft:#e8f2f7;--amber:#9a5b13;--amber-soft:#fdf3e4;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#f3f6f3;color:var(--ink);font-family:Inter,"Microsoft YaHei UI","Microsoft YaHei",sans-serif;line-height:1.5}
+main{width:min(1760px,100%);margin:auto;padding:32px clamp(16px,3.8vw,70px) 42px}
+.brand{display:flex;align-items:center;gap:10px;color:var(--green);font-weight:750;letter-spacing:.02em}
+.beat{display:flex;align-items:center;gap:3px;height:25px}.beat i{width:4px;background:#22785a;border-radius:3px;height:12px}.beat i:nth-child(2){height:23px}.beat i:nth-child(3){height:17px}
+.heading,.tools,.tabletop,.pager,.upper{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.upper{padding-bottom:19px;border-bottom:1px solid var(--border)}
+.status{font-size:12px;color:var(--muted)}.status:before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#648477}.status[data-live="true"]:before{background:#068450}.status[data-live="false"]:before{background:#bf7a23}
+h1{font-size:clamp(32px,4vw,54px);font-weight:760;line-height:1.12;letter-spacing:-.055em;margin:27px 0 8px}
+p{margin:0}.scope{font-size:14px;color:var(--muted)}
+button,select,input{font:inherit}button,select,.export{cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,[tabindex="0"]:focus-visible{outline:3px solid #56a3ac;outline-offset:2px}
+.export{display:inline-block;text-decoration:none;color:white;background:var(--green);border:1px solid var(--green);padding:10px 18px;border-radius:8px;font-size:14px;font-weight:650}.export:hover{background:#0a4433}
+.worlds{display:inline-flex;gap:3px;max-width:100%;padding:4px;margin-top:20px;border:1px solid var(--border);border-radius:9px;background:#fff}
+.worlds button{padding:6px 13px;border:0;background:transparent;border-radius:6px;font-size:13px;color:var(--muted)}
+.worlds button[aria-pressed="true"]{background:var(--green);color:white;font-weight:650}
+.worlds+.cards{margin-top:14px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:24px 0 24px}
+.card{border:1px solid var(--border);border-radius:12px;padding:15px 20px 16px;background:var(--paper)}
+.card:first-child{background:#164537;color:#fff;border-color:#164537}.card:first-child .label{color:#c5e1d2}
+.label{font-size:13px;color:var(--muted)}
+.metric{font-variant-numeric:tabular-nums;font-size:clamp(25px,2.9vw,44px);line-height:1.22;font-weight:680;letter-spacing:-.055em;margin-top:5px}
+.metric small{font-size:12px;font-weight:450;margin-left:6px;letter-spacing:0}
+
+/* Calendar + Timeline Section */
+.dayboard{background:var(--paper);border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:24px}
+.dayboard-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid var(--border)}
+.dayboard-title h2{font-size:20px;margin:0;letter-spacing:-.04em}
+.dayboard-title p{font-size:12px;color:var(--muted);margin-top:2px}
+.dayboard-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.date-input{color:var(--ink);background:#fff;border:1px solid #bccfc4;border-radius:7px;padding:6px 10px;font-size:13px;font-variant-numeric:tabular-nums}
+.chip-btn{color:var(--ink);background:#fff;border:1px solid #bccfc4;border-radius:7px;padding:6px 11px;font-size:13px;transition:background .15s,border-color .15s}
+.chip-btn:hover:not(:disabled){background:var(--mint);border-color:#8cb8a3}
+.chip-btn:disabled{color:#94a59a;border-color:#e1ebe5;cursor:default}
+.chip-btn[aria-pressed="true"]{background:var(--mint);border-color:var(--green);color:var(--green);font-weight:600}
+.dayboard-grid{display:grid;grid-template-columns:346px minmax(0,1fr);align-items:stretch}
+
+/* Calendar */
+.cal-pane{padding:16px 18px 18px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:12px;background:#fbfdfb}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.cal-nav-btn{width:32px;height:32px;border:1px solid #c6d8ce;background:#fff;color:var(--ink);border-radius:7px;font-size:17px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
+.cal-nav-btn:hover{background:var(--mint);border-color:#8cb8a3}
+.cal-pickers{display:flex;align-items:center;gap:6px}
+.cal-pickers select{color:var(--ink);background:#fff;border:1px solid #c6d8ce;border-radius:7px;padding:5px 8px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:11px;font-weight:650;color:var(--muted);padding:2px 0}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-day{position:relative;border:1px solid transparent;border-radius:8px;padding:5px 2px 6px;min-height:46px;background:#fff;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:2px;font-variant-numeric:tabular-nums;transition:border-color .12s,background .12s,transform .08s}
+.cal-day:hover{border-color:#78ad93}
+.cal-day.out{opacity:.42;background:transparent}
+.cal-day.out:hover{opacity:.78;background:#f2f7f4}
+.cal-day[data-heat="0"]{background:#f7faf8;color:#627b71}
+.cal-day[data-heat="1"]{background:#e7f4ec;border-color:#d4e9dc}
+.cal-day[data-heat="2"]{background:#c6e4d2;border-color:#aed7bf}
+.cal-day[data-heat="3"]{background:#8ec9a9;border-color:#73b993;color:#0e3327}
+.cal-day[data-heat="4"]{background:#479c72;border-color:#35845d;color:#fff}
+.cal-day.today{box-shadow:inset 0 0 0 1.5px var(--green)}
+.cal-day[data-heat="4"].today{box-shadow:inset 0 0 0 1.5px #fff}
+.cal-day[aria-pressed="true"]{background:var(--green)!important;border-color:#0c3b2d!important;color:#fff!important;box-shadow:0 2px 8px rgba(20,86,67,.28)}
+.cal-num{font-size:12px;font-weight:650;line-height:1.1}
+.cal-cnt{font-size:10px;line-height:1;opacity:.88;font-weight:600}
+.cal-day[data-heat="0"] .cal-cnt{opacity:0}
+.cal-dots{display:flex;gap:3px;height:4px;align-items:center}
+.cal-dots i{width:4px;height:4px;border-radius:50%;display:block}
+.cal-dots i.wd{background:#12684b}
+.cal-dots i.pypy{background:#1f6c91}
+.cal-day[data-heat="4"] .cal-dots i.wd,.cal-day[aria-pressed="true"] .cal-dots i.wd{background:#a6f0cf}
+.cal-day[data-heat="4"] .cal-dots i.pypy,.cal-day[aria-pressed="true"] .cal-dots i.pypy{background:#9ad9f8}
+.cal-foot{margin-top:auto;padding-top:10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--muted)}
+.cal-summary{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.cal-legend{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px}
+.heat-scale,.world-legend{display:flex;align-items:center;gap:4px}
+.swatch{width:11px;height:11px;border-radius:3px;border:1px solid rgba(20,86,67,.16);display:inline-block}
+.swatch.h0{background:#f7faf8}.swatch.h1{background:#e7f4ec}.swatch.h2{background:#c6e4d2}.swatch.h3{background:#8ec9a9}.swatch.h4{background:#479c72}
+.wdot{width:8px;height:8px;border-radius:50%;display:inline-block}.wdot.wd{background:var(--green)}.wdot.pypy{background:var(--pypy)}
+
+/* Timeline Pane */
+.tl-pane{display:flex;flex-direction:column;min-width:0}
+.tl-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 20px 14px;border-bottom:1px solid #eaf0ec}
+.tl-date-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tl-head h3{margin:0;font-size:20px;font-weight:720;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.day-pill{font-size:11px;font-weight:650;padding:2px 8px;border-radius:999px;background:var(--mint);color:var(--green)}
+.day-pill.today{background:#145643;color:#fff}
+.tl-meta{font-size:13px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+.tl-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+
+/* 24-Hour Strip */
+.hour-box{padding:12px 20px 14px;border-bottom:1px solid var(--border);background:#fafcfa}
+.hour-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:8px;font-variant-numeric:tabular-nums}
+.hour-track{position:relative;height:28px;border-radius:7px;background:#edf3ef;border:1px solid #d7e4dc;overflow:hidden}
+.hour-grid{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(to right,rgba(23,43,39,.09) 1px,transparent 1px);background-size:calc(100% / 12) 100%}
+.hour-seg{position:absolute;top:4px;bottom:4px;border:0;padding:0;border-radius:3px;min-width:4px;opacity:.92;transition:transform .12s,opacity .12s}
+.hour-seg[data-world="WannaDance"]{background:#197355}
+.hour-seg[data-world="PyPyDance"]{background:#246d8f}
+.hour-seg:hover,.hour-seg.active{opacity:1;transform:scaleY(1.22);z-index:3;box-shadow:0 0 0 1.5px #fff,0 0 0 3px var(--ink)}
+.hour-now{position:absolute;top:0;bottom:0;width:2px;background:#d94b3d;z-index:4;pointer-events:none}
+.hour-now::after{content:"";position:absolute;top:-1px;left:-3px;width:8px;height:8px;border-radius:50%;background:#d94b3d}
+.hour-ticks{display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* Chronological Rail */
+.tl-scroll{overflow-y:auto;max-height:468px;padding:14px 20px 18px;scrollbar-color:#a9bdb1 #f3f7f3}
+.tl-break{display:flex;align-items:center;gap:10px;margin:14px 0 10px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tl-break::before,.tl-break::after{content:"";flex:1;height:1px;background:repeating-linear-gradient(to right,#c8d8cf 0 4px,transparent 4px 8px)}
+.tl-session{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:7px 12px;margin:4px 0 10px;border-radius:8px;background:#eef5f1;border:1px solid #d5e5dc;font-size:12px;font-variant-numeric:tabular-nums}
+.tl-session[data-world="PyPyDance"]{background:#edf4f8;border-color:#cfe1eb}
+.tl-session strong{color:var(--ink);font-weight:700}
+.tl-session span{color:var(--muted)}
+.tl-list{display:flex;flex-direction:column}
+.tl-item{display:grid;grid-template-columns:92px 22px minmax(0,1fr);gap:8px;align-items:stretch;scroll-margin-top:16px}
+.tl-time{padding:9px 4px 12px 0;text-align:right;font-variant-numeric:tabular-nums}
+.tl-time time{display:block;font-size:14px;font-weight:700;color:var(--ink);line-height:1.25}
+.tl-dur{display:block;font-size:11px;color:var(--muted);margin-top:2px;line-height:1.3}
+.tl-dur.cut{color:var(--amber);font-weight:600}
+.tl-rail{position:relative;display:flex;justify-content:center}
+.tl-rail::before{content:"";position:absolute;top:0;bottom:0;width:2px;background:#d7e4dc}
+.tl-item.is-first .tl-rail::before{top:16px}
+.tl-item.is-last .tl-rail::before{bottom:calc(100% - 16px)}
+.tl-item.is-first.is-last .tl-rail::before{display:none}
+.tl-dot{position:relative;z-index:1;margin-top:13px;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid #fff;box-shadow:0 0 0 2px #c2ddd0}
+.tl-item[data-world="PyPyDance"] .tl-dot{background:var(--pypy);box-shadow:0 0 0 2px #c2dce9}
+.tl-item.first-ever .tl-dot{width:12px;height:12px;margin-top:12px;box-shadow:0 0 0 2.5px #e6b85c}
+.tl-card{margin:3px 0 9px;padding:9px 13px;border:1px solid #e1ebe5;border-radius:10px;background:#fff;transition:border-color .15s,background .15s,box-shadow .15s;min-width:0}
+.tl-card:hover{border-color:#9fc5b2;background:#fafdfb}
+.tl-item.highlight .tl-card{border-color:var(--green);background:#ebf6f0;box-shadow:0 0 0 2px rgba(20,86,67,.16)}
+.tl-card-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.tl-title{border:0;background:none;padding:0;text-align:left;text-decoration:none;font-size:14px;font-weight:680;color:var(--ink);line-height:1.35;word-break:break-word}
+a.tl-title::after{content:" ↗";font-size:12px;font-weight:500;color:#6d887d}
+a.tl-title:hover{color:var(--green);text-decoration:underline;text-underline-offset:3px}
+.tl-item[data-world="PyPyDance"] a.tl-title:hover{color:var(--pypy)}
+a.tl-title:hover::after{color:currentColor}
+.tl-badges{display:flex;align-items:center;gap:5px;flex-wrap:wrap;flex-shrink:0}
+.badge{font-size:11px;line-height:1.2;padding:2px 7px;border-radius:999px;font-weight:600;white-space:nowrap}
+.badge.wd{background:var(--mint);color:var(--green)}
+.badge.pypy{background:var(--pypy-soft);color:var(--pypy)}
+.badge.first{background:#fef4db;color:#8a5508;border:1px solid #f0d797}
+.badge.seq{background:#f1f5f3;color:#4f685f}
+.badge.inferred{background:var(--amber-soft);color:var(--amber)}
+a.badge.stream{text-decoration:none;background:#f4f7f8;color:var(--pypy);border:1px solid #cde0ea}
+a.badge.stream:hover{background:var(--pypy-soft);border-color:#93bcd1}
+.tl-sub{margin-top:4px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.tl-sub>*+*::before{content:"·";margin-right:6px;color:#a5bbb0}
+.tl-filter{border:0;background:none;padding:0;color:var(--muted);font-size:12px;text-decoration:underline;text-decoration-color:rgba(81,109,99,.35);text-underline-offset:2px}
+.tl-filter:hover{color:var(--green);text-decoration-color:var(--green)}
+.tl-empty{padding:44px 20px;text-align:center;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:12px}
+.tl-empty-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+
+/* Ranking Panel */
+.panel{background:var(--paper);border:1px solid var(--border);border-radius:13px;overflow:hidden}
+.tabletop{padding:17px 20px}h2{font-size:20px;margin:0;letter-spacing:-.04em}
+.tools{justify-content:flex-start;gap:8px}
+.tools input,.tools select{max-width:100%;color:var(--ink);background:#fff;border:1px solid #bccfc4;border-radius:7px;padding:8px 10px;font-size:13px}
+.tools input{width:240px}
+.scroll{overflow:auto;max-height:63vh;border-block:1px solid var(--border);scrollbar-color:#a9bdb1 #f3f7f3}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+td,th{padding:9px 12px;text-align:right}
+th{background:#eaf2ed;position:sticky;top:0;z-index:2;border-bottom:1px solid #cbdad1;font-size:12px;color:#3c584c}
+th button{border:0;background:none;font-weight:650;font-size:inherit;color:inherit;padding:3px 0;white-space:nowrap}
+th button span{margin-left:3px;color:#516f61}
+tbody td{border-bottom:1px solid #edf2ee}
+tr:last-child td{border-bottom:0}
+tbody tr:nth-child(even) td{background:#f9fbf9}
+tbody tr:hover td{background:var(--mint)}
+td{background:white}
+td.text,th.text{text-align:left}
+.rank{min-width:54px;width:54px;text-align:center;position:sticky;left:0;z-index:1}
+.song{position:sticky;left:54px;z-index:1;min-width:220px;max-width:310px;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--border);font-weight:600}
+.song-link{color:inherit;text-decoration:none}
+.song-link:hover{color:var(--green);text-decoration:underline;text-underline-offset:3px}
+th.rank,th.song{z-index:3}
+td.rank{font-size:12px;color:var(--muted)}
+td.count{color:var(--green);font-weight:750}
+td.date-jump{cursor:pointer;color:var(--green);text-decoration:underline;text-decoration-color:rgba(20,86,67,.3);text-underline-offset:3px}
+td.date-jump:hover{text-decoration-color:var(--green)}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+[hidden]{display:none!important}
+.pager{padding:12px 20px;font-size:12px;color:var(--muted)}
+.nav{display:flex;align-items:center;gap:10px}
+.nav button{color:var(--ink);background:white;border:1px solid var(--border);border-radius:6px;padding:4px 11px}
+.nav button:disabled{color:#94a59a;cursor:default}
+
+@media(max-width:1020px){
+ .dayboard-grid{grid-template-columns:1fr}
+ .cal-pane{border-right:0;border-bottom:1px solid var(--border)}
+ .tl-scroll{max-height:520px}
+}
+@media(max-width:760px){
+ main{padding:17px 12px 30px}
+ .cards{grid-template-columns:1fr 1fr;gap:8px;margin:18px 0}
+ .card{padding:12px 14px}
+ .dayboard-head,.cal-pane,.tl-head,.hour-box,.tl-scroll,.tabletop{padding-left:14px;padding-right:14px}
+ .cal-day{min-height:42px;padding:4px 1px}
+ .tl-item{grid-template-columns:72px 16px minmax(0,1fr);gap:6px}
+ .tl-time time{font-size:13px}
+ .tl-card{padding:8px 10px}
+ .tools{width:100%}.tools input{flex:1;min-width:100px}
+ .song{min-width:145px;max-width:180px}
+ .pager{padding:10px}.export{padding:8px 12px}.status{font-size:11px}
+}
+</style>
+</head>
+<body><main>
+<div class="upper"><div class="brand"><span class="beat" aria-hidden="true"><i></i><i></i><i></i><i></i></span>VRChat 舞蹈记录</div><p id="status" class="status" role="status">正在读取本机 VRCX…</p></div>
+<header class="heading"><div><h1>我的舞蹈统计</h1><p id="scope" class="scope"></p></div><button class="export" id="export" disabled>导出全部 Excel ↓</button></header>
+<div class="worlds" role="group" aria-label="选择统计世界"><button data-world="" aria-pressed="true">两世界合计</button><button data-world="WannaDance" aria-pressed="false">WannaDance</button><button data-world="PyPyDance" aria-pressed="false">PyPyDance</button></div>
+<section class="cards" aria-label="累计统计">
+<div class="card"><div class="label">累计播放</div><div class="metric"><span id="plays">—</span><small>次</small></div></div>
+<div class="card"><div class="label">跳过的舞谱与视频</div><div class="metric"><span id="tracks">—</span><small>个</small></div></div>
+<div class="card"><div class="label">跳舞天数</div><div class="metric"><span id="days">—</span><small>天</small></div></div>
+<div class="card"><div class="label">按曲长估算</div><div class="metric"><span id="hours">—</span><small>小时</small></div></div>
+</section>
+
+<section class="dayboard" id="timeline-section" aria-label="日历与每日时间线">
+ <div class="dayboard-head">
+  <div class="dayboard-title">
+   <h2>每日时间线</h2>
+  </div>
+  <div class="dayboard-controls">
+   <input type="date" id="date-jump" class="date-input" aria-label="选择日期">
+   <button type="button" id="btn-latest" class="chip-btn">最近跳舞日</button>
+   <button type="button" id="btn-today" class="chip-btn">今天</button>
+  </div>
+ </div>
+ <div class="dayboard-grid">
+  <div class="cal-pane" aria-label="跳舞日历">
+   <div class="cal-nav">
+    <button type="button" class="cal-nav-btn" id="cal-prev" aria-label="上个月">‹</button>
+    <div class="cal-pickers">
+     <select id="cal-year" aria-label="选择年份"></select>
+     <select id="cal-month" aria-label="选择月份"></select>
+    </div>
+    <button type="button" class="cal-nav-btn" id="cal-next" aria-label="下个月">›</button>
+   </div>
+   <div class="cal-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+   <div class="cal-grid" id="cal-grid" role="grid" aria-label="月度跳舞日历"></div>
+   <div class="cal-foot">
+    <div class="cal-summary" id="cal-summary">正在载入日历…</div>
+    <div class="cal-legend">
+     <div class="heat-scale" aria-label="播放频次色阶"><span>少</span><i class="swatch h0"></i><i class="swatch h1"></i><i class="swatch h2"></i><i class="swatch h3"></i><i class="swatch h4"></i><span>多</span></div>
+     <div class="world-legend"><i class="wdot wd"></i><span>WannaDance</span><i class="wdot pypy"></i><span>PyPyDance</span></div>
+    </div>
+   </div>
+  </div>
+  <div class="tl-pane" aria-label="当日播放时间线">
+   <div class="tl-head">
+    <div>
+     <div class="tl-date-row"><h3 id="tl-date">—</h3><span id="tl-day-pill" class="day-pill" hidden></span></div>
+     <p id="tl-summary" class="tl-meta" hidden></p>
+    </div>
+    <div class="tl-actions">
+     <button type="button" id="prev-active-day" class="chip-btn" disabled>← 前一跳舞日</button>
+     <button type="button" id="next-active-day" class="chip-btn" disabled>后一跳舞日 →</button>
+     <button type="button" id="tl-order" class="chip-btn" aria-pressed="false">正序 ↑</button>
+    </div>
+   </div>
+   <div class="hour-box">
+    <div class="hour-top"><span id="hour-label">当日 24 小时分布（东京时间 UTC+9）</span><span id="hour-span"></span></div>
+    <div class="hour-track" id="hour-track" aria-label="24小时跳舞分布条"><div class="hour-grid"></div></div>
+    <div class="hour-ticks" aria-hidden="true"><span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>24:00</span></div>
+   </div>
+   <div class="tl-scroll" id="tl-scroll"><div id="tl-list" class="tl-list"></div></div>
+  </div>
+ </div>
+</section>
+
+<section class="panel"><div class="tabletop"><h2>曲目排行</h2><div class="tools"><input type="search" id="search" aria-label="搜索曲名、原唱或编舞" placeholder="搜索曲名、原唱或编舞"><select id="category" aria-label="按分类筛选"><option value="">全部分类</option></select></div></div>
+<div class="scroll" tabindex="0" aria-label="排名表，可横向滚动"><table><thead><tr id="headers"></tr></thead><tbody id="body"></tbody></table><p class="empty" id="empty" hidden>没有符合条件的曲目。</p></div>
+<div class="pager"><span id="result"></span><div class="nav"><button id="prev" disabled>上一页</button><span id="page"></span><button id="next" disabled>下一页</button></div></div></section>
+<p class="scope" id="notice" role="alert"></p>
+</main><script>
+"use strict";
+const el=id=>document.getElementById(id), format=new Intl.NumberFormat("zh-CN");
+// Served by the local engine on port 18761 => live VRCX mode; anywhere else (GitHub Pages) => daily snapshot.
+const STATIC=location.port!=="18761";
+const DATA_URL=STATIC?"data.json":"/api/stats", EXCEL_URL=STATIC?"VRChat-Dance.xlsx":"/excel";
+if(STATIC){
+ el("status").textContent="正在加载舞蹈记录…";
+}
+const WEEKDAYS=["周日","周一","周二","周三","周四","周五","周六"];
+const columns=[
+ ["rank","排名","rank"],["title","曲目","song text"],["artist","原唱","text"],["source","编舞 / 来源","text"],["category","分类","text"],
+ ["intensity","强度",""],["minutes","时长(分)",""],["count","次数","count"],["share","占比",""],["days","跳过天数",""],["peak","单日最多",""],["first","首次",""],["last","最近",""],["hours","累计小时",""],["world","世界","text"]
+];
+let packet=null, dataPacket=null, page=1, sortKey="rank", direction=1;
+let trackIndex=new Map(), activeDays=[], dayStats=new Map();
+const params=new URLSearchParams(location.search);
+const worldButtons=Array.from(document.querySelectorAll("[data-world]"));
+const initialWorld=params.get("world");
+const initialDate=params.get("date");
+let selectedWorld=worldButtons.some(b=>b.dataset.world===initialWorld)?initialWorld:"";
+let selectedDate=/^\d{4}-\d{2}-\d{2}$/.test(initialDate||"")?initialDate:null;
+let userPinnedDate=!!selectedDate;
+let calYear=null, calMonth=null, tlDesc=false, highlightTrackKey=null, knownLatestDate=null;
+
+function tokyoParts(date=new Date()){
+ const parts=new Intl.DateTimeFormat("en-CA",{
+  timeZone:"Asia/Tokyo",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"
+ }).formatToParts(date);
+ const map=Object.fromEntries(parts.map(p=>[p.type,p.value]));
+ return {
+  date:`${map.year}-${map.month}-${map.day}`,
+  seconds:Number(map.hour)*3600+Number(map.minute)*60+Number(map.second)
+ };
+}
+function pad2(n){return String(n).padStart(2,"0");}
+function isoDate(y,m,d){return `${y}-${pad2(m)}-${pad2(d)}`;}
+function parseIso(str){const [y,m,d]=str.split("-").map(Number);return {y,m,d};}
+function weekdayOf(str){const {y,m,d}=parseIso(str);return WEEKDAYS[new Date(Date.UTC(y,m-1,d)).getUTCDay()];}
+function timeToSeconds(hms){const [h,m,s]=(hms||"00:00:00").split(":").map(Number);return (h||0)*3600+(m||0)*60+(s||0);}
+function secondsToHM(sec){
+ const clamped=Math.max(0,Math.floor(sec));
+ const h=Math.floor(clamped/3600)%24, m=Math.floor((clamped%3600)/60);
+ return `${pad2(h)}:${pad2(m)}`;
+}
+function formatGap(sec){
+ const s=Math.max(0,Math.round(sec));
+ if(s<60)return `${s} 秒`;
+ const m=Math.floor(s/60), r=s%60;
+ if(m<60)return r?`${m} 分 ${r} 秒`:`${m} 分钟`;
+ const h=Math.floor(m/60), rm=m%60;
+ return rm?`${h} 小时 ${rm} 分`:`${h} 小时`;
+}
+function formatShortSpan(sec){
+ const s=Math.max(0,Math.round(sec));
+ if(s<60)return `${s}秒`;
+ return `${Math.floor(s/60)}:${pad2(s%60)}`;
+}
+function heatLevel(count){
+ if(!count)return 0;
+ if(count<=5)return 1;
+ if(count<=15)return 2;
+ if(count<=30)return 3;
+ return 4;
+}
+function syncUrl(){
+ const url=new URL(location);
+ if(selectedWorld)url.searchParams.set("world",selectedWorld);else url.searchParams.delete("world");
+ if(selectedDate&&userPinnedDate)url.searchParams.set("date",selectedDate);else url.searchParams.delete("date");
+ history.replaceState(null,"",url);
+}
+
+for(const button of worldButtons){
+ button.setAttribute("aria-pressed",String(button.dataset.world===selectedWorld));
+ button.onclick=()=>{
+  selectedWorld=button.dataset.world;
+  for(const b of worldButtons)b.setAttribute("aria-pressed",String(b===button));
+  el("category").value="";page=1;highlightTrackKey=null;
+  syncUrl();
+  if(dataPacket)showView(true);
+ };
+}
+const pageSize=50, headers=new Map();
+for(const [key,label,cls] of columns){
+ const th=document.createElement("th"), button=document.createElement("button"), arrow=document.createElement("span");
+ th.scope="col";th.className=cls;button.append(label,arrow);th.append(button);el("headers").append(th);
+ headers.set(key,{th,arrow});
+ button.onclick=()=>{direction=sortKey===key?-direction:(["count","peak","share","days","hours","intensity","minutes","last"].includes(key)?-1:1);sortKey=key;page=1;render()};
+}
+function display(key,v){
+ if(v==null||v==="")return "—";
+ if(key==="share")return (v*100).toFixed(2)+"%";
+ if(["minutes","hours","intensity"].includes(key))return v.toFixed(1);
+ return String(v);
+}
+
+function rebuildTimelineIndex(worldChanged=false){
+ trackIndex=new Map();
+ for(const row of dataPacket.rows)trackIndex.set(row.world+"|"+row.key,row);
+ dayStats=new Map();
+ const raw=dataPacket.timeline||{};
+ for(const [day,events] of Object.entries(raw)){
+  const filtered=selectedWorld?events.filter(e=>e.world===selectedWorld):events;
+  if(!filtered.length)continue;
+  let wd=0,pypy=0;
+  for(const e of filtered){if(e.world==="WannaDance")wd++;else pypy++;}
+  dayStats.set(day,{events:filtered,count:filtered.length,wd,pypy});
+ }
+ activeDays=[...dayStats.keys()].sort();
+ const latest=activeDays.length?activeDays[activeDays.length-1]:null;
+ const today=tokyoParts().date;
+ if(!selectedDate){
+  selectedDate=latest||today;
+ }else if(!userPinnedDate){
+  if(worldChanged&&!dayStats.has(selectedDate)){
+   selectedDate=latest||today;
+  }else if(latest&&knownLatestDate&&latest>knownLatestDate&&selectedDate===knownLatestDate){
+   selectedDate=latest;
+  }else if(latest&&!dayStats.has(selectedDate)){
+   selectedDate=latest;
+  }
+ }
+ knownLatestDate=latest;
+ if(calYear===null||calMonth===null||worldChanged&&!userPinnedDate){
+  const {y,m}=parseIso(selectedDate);
+  calYear=y;calMonth=m;
+ }
+}
+
+function selectDate(dateStr,pin=true,focusKey=null){
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(dateStr||""))return;
+ selectedDate=dateStr;
+ userPinnedDate=pin;
+ highlightTrackKey=focusKey;
+ const {y,m}=parseIso(dateStr);
+ calYear=y;calMonth=m;
+ syncUrl();
+ renderCalendar();
+ renderTimeline();
+}
+
+function ensureMonthSelectors(){
+ const today=tokyoParts().date;
+ const firstYear=activeDays.length?parseIso(activeDays[0]).y:parseIso(today).y;
+ const maxYear=Math.max(parseIso(today).y,activeDays.length?parseIso(activeDays[activeDays.length-1]).y:firstYear,calYear||firstYear);
+ const minYear=Math.min(firstYear,calYear||firstYear);
+ const yearOpts=[];
+ for(let y=minYear;y<=maxYear;y++)yearOpts.push(new Option(`${y} 年`,String(y)));
+ el("cal-year").replaceChildren(...yearOpts);
+ el("cal-year").value=String(calYear);
+ if(!el("cal-month").options.length){
+  const monthOpts=[];
+  for(let m=1;m<=12;m++)monthOpts.push(new Option(`${m} 月`,String(m)));
+  el("cal-month").replaceChildren(...monthOpts);
+ }
+ el("cal-month").value=String(calMonth);
+}
+
+function renderCalendar(){
+ if(!dataPacket||!selectedDate)return;
+ ensureMonthSelectors();
+ const today=tokyoParts().date;
+ const firstWeekday=(new Date(Date.UTC(calYear,calMonth-1,1)).getUTCDay()+6)%7; // Mon=0..Sun=6
+ const daysInMonth=new Date(Date.UTC(calYear,calMonth,0)).getUTCDate();
+ const prevMonthDays=new Date(Date.UTC(calYear,calMonth-1,0)).getUTCDate();
+ const totalCells=Math.ceil((firstWeekday+daysInMonth)/7)*7;
+ const frag=document.createDocumentFragment();
+ let monthDays=0,monthPlays=0;
+ for(let i=0;i<totalCells;i++){
+  let y=calYear,m=calMonth,d,outside=false;
+  if(i<firstWeekday){
+   outside=true;
+   m=calMonth-1;if(m<1){m=12;y--;}
+   d=prevMonthDays-firstWeekday+1+i;
+  }else if(i>=firstWeekday+daysInMonth){
+   outside=true;
+   m=calMonth+1;if(m>12){m=1;y++;}
+   d=i-(firstWeekday+daysInMonth)+1;
+  }else{
+   d=i-firstWeekday+1;
+  }
+  const key=isoDate(y,m,d);
+  const info=dayStats.get(key);
+  const count=info?info.count:0;
+  if(!outside&&count){monthDays++;monthPlays+=count;}
+  const btn=document.createElement("button");
+  btn.type="button";
+  btn.className="cal-day"+(outside?" out":"")+(key===today?" today":"");
+  btn.dataset.date=key;
+  btn.dataset.heat=String(heatLevel(count));
+  btn.setAttribute("aria-pressed",String(key===selectedDate));
+  btn.setAttribute("aria-label",`${key} ${weekdayOf(key)}，${count?count+" 次播放":"无记录"}`);
+  if(count)btn.title=`${key} ${weekdayOf(key)} · ${count} 次播放`;
+  const num=document.createElement("span");num.className="cal-num";num.textContent=String(d);
+  const cnt=document.createElement("span");cnt.className="cal-cnt";cnt.textContent=count?String(count):"·";
+  const dots=document.createElement("span");dots.className="cal-dots";dots.setAttribute("aria-hidden","true");
+  if(info){
+   if(info.wd){const dot=document.createElement("i");dot.className="wd";dots.append(dot);}
+   if(info.pypy){const dot=document.createElement("i");dot.className="pypy";dots.append(dot);}
+  }
+  btn.append(num,cnt,dots);
+  btn.onclick=()=>selectDate(key,true,null);
+  frag.append(btn);
+ }
+ el("cal-grid").replaceChildren(frag);
+ el("cal-summary").textContent=monthDays
+  ?`${calYear} 年 ${calMonth} 月 · 跳舞 ${monthDays} 天 · 共 ${format.format(monthPlays)} 次播放`
+  :`${calYear} 年 ${calMonth} 月 · 暂无舞蹈记录`;
+ el("date-jump").value=selectedDate;
+ el("btn-latest").disabled=!activeDays.length;
+}
+
+function buildSessions(events){
+ const sessions=[];
+ let current=null;
+ for(let i=0;i<events.length;i++){
+  const ev=events[i];
+  const track=trackIndex.get(ev.world+"|"+ev.key)||{title:ev.key,category:"曲库待匹配"};
+  const stage=ev.stage||ev.world;
+  const startSec=timeToSeconds(ev.time);
+  const nominalSec=track.minutes!=null?Math.round(track.minutes*60):null;
+  const next=events[i+1];
+  const nextGap=next?Math.max(0,next.ts-ev.ts):null;
+  let actualSec=nominalSec!=null?nominalSec:180;
+  let cutKind=null;
+  if(next&&nextGap!=null&&nextGap<(nominalSec!=null?nominalSec:180)){
+   actualSec=Math.max(1,nextGap);
+   if(nextGap<30)cutKind="retry";
+   else if(nominalSec!=null&&nextGap<nominalSec*0.75)cutKind="early";
+  }
+  const prevItem=current?current.items[current.items.length-1]:null;
+  let breakSec=0;
+  if(prevItem){
+   const prevNominal=prevItem.nominalSec!=null?prevItem.nominalSec:180;
+   const idle=Math.max(0,ev.ts-(prevItem.ev.ts+prevNominal));
+   breakSec=idle;
+   if(stage!==current.stage||idle>=1800){
+    current=null;
+   }
+  }
+  if(!current){
+   current={index:sessions.length+1,world:ev.world,stage,items:[],breakBefore:sessions.length?breakSec:0};
+   sessions.push(current);
+  }
+  current.items.push({idx:i,ev,track,stage,startSec,nominalSec,actualSec,nextGap,cutKind});
+ }
+ for(const s of sessions){
+  const first=s.items[0], last=s.items[s.items.length-1];
+  const lastEnd=last.startSec+(last.nominalSec!=null?last.nominalSec:180);
+  s.startHM=first.ev.time.slice(0,5);
+  s.endHM=secondsToHM(Math.min(86399,lastEnd));
+  s.minutes=s.items.reduce((acc,it)=>acc+(it.track.minutes||0),0);
+  s.knownDur=s.items.filter(it=>it.track.minutes!=null).length;
+ }
+ return sessions;
+}
+
+function renderHourBar(items){
+ const track=el("hour-track");
+ track.innerHTML='<div class="hour-grid"></div>';
+ const {date:today,seconds:nowSec}=tokyoParts();
+ for(const item of items){
+  const btn=document.createElement("button");
+  btn.type="button";
+  btn.className="hour-seg";
+  btn.dataset.world=item.ev.world;
+  btn.dataset.idx=String(item.idx);
+  const left=Math.min(99.4,item.startSec/86400*100);
+  const width=Math.max(0.55,Math.min(100-left,Math.max(item.actualSec,90)/86400*100));
+  btn.style.left=left.toFixed(3)+"%";
+  btn.style.width=width.toFixed(3)+"%";
+  btn.title=`${item.ev.time} · ${item.track.title} (${item.stage})`;
+  btn.setAttribute("aria-label",`${item.ev.time} ${item.track.title}`);
+  btn.onclick=()=>focusTimelineItem(item.idx);
+  track.append(btn);
+ }
+ if(selectedDate===today){
+  const nowEl=document.createElement("div");
+  nowEl.className="hour-now";
+  nowEl.style.left=(nowSec/86400*100).toFixed(3)+"%";
+  nowEl.title=`现在 ${secondsToHM(nowSec)} (UTC+9)`;
+  track.append(nowEl);
+ }
+ if(items.length){
+  const first=items[0], last=items[items.length-1];
+  const endSec=Math.min(86399,last.startSec+(last.nominalSec!=null?last.nominalSec:180));
+  el("hour-span").textContent=`活跃时段 ${first.ev.time.slice(0,5)} – ${secondsToHM(endSec)}`;
+ }else{
+  el("hour-span").textContent=selectedDate===today?`当前时刻 ${secondsToHM(nowSec)}`:"当日无活动";
+ }
+}
+
+function focusTimelineItem(idx){
+ for(const seg of el("hour-track").querySelectorAll(".hour-seg"))seg.classList.toggle("active",seg.dataset.idx===String(idx));
+ const target=el("tl-list").querySelector(`.tl-item[data-idx="${idx}"]`);
+ if(!target)return;
+ for(const node of el("tl-list").querySelectorAll(".tl-item.highlight"))node.classList.remove("highlight");
+ target.classList.add("highlight");
+ target.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+function renderTimeline(){
+ if(!dataPacket||!selectedDate)return;
+ const today=tokyoParts().date;
+ const latest=activeDays.length?activeDays[activeDays.length-1]:null;
+ el("tl-date").textContent=`${selectedDate} ${weekdayOf(selectedDate)}`;
+ const pill=el("tl-day-pill");
+ if(selectedDate===today){pill.textContent="今天";pill.className="day-pill today";pill.hidden=false;}
+ else if(selectedDate===latest){pill.textContent="最近跳舞日";pill.className="day-pill";pill.hidden=false;}
+ else{pill.hidden=true;}
+
+ const prevDay=[...activeDays].reverse().find(d=>d<selectedDate)||null;
+ const nextDay=activeDays.find(d=>d>selectedDate)||null;
+ el("prev-active-day").disabled=!prevDay;
+ el("prev-active-day").onclick=()=>prevDay&&selectDate(prevDay,true,null);
+ el("next-active-day").disabled=!nextDay;
+ el("next-active-day").onclick=()=>nextDay&&selectDate(nextDay,true,null);
+ el("tl-order").textContent=tlDesc?"倒序 ↓":"正序 ↑";
+ el("tl-order").setAttribute("aria-pressed",String(tlDesc));
+
+ const info=dayStats.get(selectedDate);
+ const events=info?info.events:[];
+ if(!events.length){
+  renderHourBar([]);
+  const allOnDay=(dataPacket.timeline&&dataPacket.timeline[selectedDate])||[];
+  el("tl-summary").textContent="";
+  el("tl-summary").hidden=true;
+  const box=document.createElement("div");box.className="tl-empty";
+  const msg=document.createElement("p");
+  if(selectedWorld&&allOnDay.length){
+   const other=selectedWorld==="WannaDance"?"PyPyDance":"WannaDance";
+   msg.textContent=`${selectedDate} 在 ${selectedWorld} 暂无记录，但在 ${other} 有 ${allOnDay.length} 次播放。`;
+  }else if(activeDays.length){
+   msg.textContent=`${selectedDate} 没有检测到 WannaDance 或 PyPyDance 播放记录。`;
+  }else{
+   msg.textContent="当前 VRCX 暂无舞蹈记录。进入 WannaDance 或 PyPyDance 播放舞谱后将自动同步。";
+  }
+  const actions=document.createElement("div");actions.className="tl-empty-actions";
+  if(selectedWorld&&allOnDay.length){
+   const sw=document.createElement("button");sw.type="button";sw.className="chip-btn";
+   sw.textContent="切换到「两世界合计」查看当日";
+   sw.onclick=()=>document.querySelector('[data-world=""]').click();
+   actions.append(sw);
+  }
+  if(prevDay){
+   const b=document.createElement("button");b.type="button";b.className="chip-btn";
+   b.textContent=`查看前一跳舞日 (${prevDay})`;b.onclick=()=>selectDate(prevDay,true,null);actions.append(b);
+  }
+  if(nextDay){
+   const b=document.createElement("button");b.type="button";b.className="chip-btn";
+   b.textContent=`查看后一跳舞日 (${nextDay})`;b.onclick=()=>selectDate(nextDay,true,null);actions.append(b);
+  }
+  if(latest&&latest!==prevDay&&latest!==nextDay){
+   const b=document.createElement("button");b.type="button";b.className="chip-btn";
+   b.textContent=`跳到最近跳舞日 (${latest})`;b.onclick=()=>selectDate(latest,false,null);actions.append(b);
+  }
+  box.append(msg,actions);
+  el("tl-list").replaceChildren(box);
+  return;
+ }
+
+ const sessions=buildSessions(events);
+ const allItems=sessions.flatMap(s=>s.items);
+ const uniqTracks=new Set(events.map(e=>e.world+"|"+e.key)).size;
+ const totalMins=allItems.reduce((sum,it)=>sum+(it.track.minutes||0),0);
+ const worldPart=!selectedWorld&&info.wd&&info.pypy?` · WannaDance ${info.wd} / PyPyDance ${info.pypy}`:"";
+ el("tl-summary").hidden=false;
+ el("tl-summary").textContent=`共 ${format.format(events.length)} 次播放 · ${format.format(uniqTracks)} 首曲目 · 约 ${totalMins.toFixed(1)} 分钟 · ${sessions.length} 个场次${worldPart}`;
+ renderHourBar(allItems);
+
+ const displaySessions=tlDesc?[...sessions].reverse():sessions;
+ const frag=document.createDocumentFragment();
+ let firstMatchedNode=null;
+
+ for(let si=0;si<displaySessions.length;si++){
+  const session=displaySessions[si];
+  if(!tlDesc&&session.breakBefore>=1800){
+   const br=document.createElement("div");br.className="tl-break";
+   br.textContent=`间隔 ${formatGap(session.breakBefore)}`;
+   frag.append(br);
+  }else if(tlDesc&&si>0){
+   const prevShown=displaySessions[si-1];
+   if(prevShown.breakBefore>=1800){
+    const br=document.createElement("div");br.className="tl-break";
+    br.textContent=`间隔 ${formatGap(prevShown.breakBefore)}`;
+    frag.append(br);
+   }
+  }
+  const sh=document.createElement("div");sh.className="tl-session";sh.dataset.world=session.world;
+  const left=document.createElement("strong");
+  left.textContent=`${sessions.length>1?"第 "+session.index+" 场 · ":""}${session.startHM} – ${session.endHM} · ${session.stage}`;
+  const right=document.createElement("span");
+  right.textContent=`${session.items.length} 次播放${session.knownDur?` · 约 ${session.minutes.toFixed(1)} 分钟`:""}`;
+  sh.append(left,right);
+  frag.append(sh);
+
+  const items=tlDesc?[...session.items].reverse():session.items;
+  for(let ii=0;ii<items.length;ii++){
+   const item=items[ii];
+   const row=document.createElement("article");
+   row.className="tl-item"+(ii===0?" is-first":"")+(ii===items.length-1?" is-last":"")+(item.ev.seq===1?" first-ever":"");
+   row.dataset.idx=String(item.idx);
+   row.dataset.world=item.ev.world;
+   const fullKey=item.ev.world+"|"+item.ev.key;
+   if(highlightTrackKey&&highlightTrackKey===fullKey){
+    row.classList.add("highlight");
+    if(!firstMatchedNode)firstMatchedNode=row;
+   }
+
+   const timeCol=document.createElement("div");timeCol.className="tl-time";
+   const tEl=document.createElement("time");tEl.textContent=item.ev.time;
+   const durEl=document.createElement("span");durEl.className="tl-dur";
+   if(item.cutKind==="retry"){
+    durEl.classList.add("cut");durEl.textContent=`播 ${formatShortSpan(item.nextGap)} · 切歌/重载`;
+   }else if(item.cutKind==="early"){
+    durEl.classList.add("cut");durEl.textContent=`播 ${formatShortSpan(item.nextGap)} · 提前切歌`;
+   }else if(item.track.minutes!=null){
+    durEl.textContent=`${item.track.minutes.toFixed(1)} 分`;
+   }else{
+    durEl.textContent="时长未知";
+   }
+   timeCol.append(tEl,durEl);
+
+   const rail=document.createElement("div");rail.className="tl-rail";rail.setAttribute("aria-hidden","true");
+   const dot=document.createElement("span");dot.className="tl-dot";rail.append(dot);
+
+   const card=document.createElement("div");card.className="tl-card";
+   const top=document.createElement("div");top.className="tl-card-top";
+   let titleEl;
+   if(item.track.url){
+    titleEl=document.createElement("a");
+    titleEl.className="tl-title";
+    titleEl.href=item.track.url;
+    titleEl.target="_blank";
+    titleEl.rel="noopener noreferrer";
+    titleEl.textContent=item.track.title;
+    titleEl.title=item.track.url.includes("youtube.com")?"点击在新标签页打开 YouTube 视频界面":
+     item.track.url.includes("bilibili.com")?"点击在新标签页打开哔哩哔哩视频界面":"点击在新标签页打开对应视频播放页";
+   }else{
+    titleEl=document.createElement("span");
+    titleEl.className="tl-title";
+    titleEl.textContent=item.track.title;
+    titleEl.title="VRCX 仅记录了临时视频流地址，无固定视频页面";
+   }
+   const badges=document.createElement("div");badges.className="tl-badges";
+   if(item.track.stream_url){
+    const sl=document.createElement("a");sl.className="badge stream";
+    sl.href=item.track.stream_url;sl.target="_blank";sl.rel="noopener noreferrer";
+    sl.textContent="视频直链 ↗";sl.title="打开 VRCX 记录的 PyPyDance 缓存视频流";
+    badges.append(sl);
+   }
+   const wb=document.createElement("span");wb.className="badge "+(item.ev.world==="WannaDance"?"wd":"pypy");
+   wb.textContent=item.stage;badges.append(wb);
+   if(item.ev.seq===1){
+    const fb=document.createElement("span");fb.className="badge first";fb.textContent="首跳";badges.append(fb);
+   }else if(item.ev.seq){
+    const sb=document.createElement("span");sb.className="badge seq";sb.textContent=`第 ${item.ev.seq} 次`;badges.append(sb);
+   }
+   if(item.ev.inferred){
+    const ib=document.createElement("span");ib.className="badge inferred";ib.textContent="推定";
+    ib.title="VRCX 未记录世界位置，依据曲库链接与邻近访问记录推定";badges.append(ib);
+   }
+   top.append(titleEl,badges);
+
+   const sub=document.createElement("div");sub.className="tl-sub";
+   const metaParts=[];
+   if(item.track.artist)metaParts.push(item.track.artist);
+   if(item.track.source)metaParts.push(item.track.source);
+   if(item.track.category)metaParts.push(item.track.category);
+   if(item.track.intensity!=null)metaParts.push(`强度 ${item.track.intensity.toFixed(1)}`);
+   for(const text of metaParts){const s=document.createElement("span");s.textContent=text;sub.append(s);}
+   if(item.track.count!=null){
+    const fb=document.createElement("button");fb.type="button";fb.className="tl-filter";
+    fb.textContent=`累计 ${item.track.count} 次`;
+    fb.title="点击在下方曲目排行中筛选此曲";
+    fb.onclick=()=>{
+     el("search").value=item.track.title;
+     el("category").value="";
+     page=1;render();
+     document.querySelector(".panel").scrollIntoView({behavior:"smooth",block:"start"});
+    };
+    sub.append(fb);
+   }
+
+   card.append(top,sub);
+   row.append(timeCol,rail,card);
+   frag.append(row);
+  }
+ }
+ el("tl-list").replaceChildren(frag);
+ if(firstMatchedNode){
+  firstMatchedNode.scrollIntoView({behavior:"smooth",block:"center"});
+ }else{
+  el("tl-scroll").scrollTop=0;
+ }
+}
+
+function render(){
+ if(!packet)return;
+ const word=el("search").value.trim().toLocaleLowerCase(),category=el("category").value;
+ const rows=packet.rows.filter(r=>(!category||r.category===category)&&(!word||[r.title,r.artist,r.source,r.key].some(v=>String(v||"").toLocaleLowerCase().includes(word))));
+ rows.sort((a,b)=>{
+  const x=a[sortKey],y=b[sortKey];if(x==null||x==="")return y==null||y===""?a.rank-b.rank:1;if(y==null||y==="")return -1;
+  const diff=typeof x==="number"?x-y:String(x).localeCompare(String(y),"zh-CN");
+  return direction*diff||a.rank-b.rank;
+ });
+ const pages=Math.max(1,Math.ceil(rows.length/pageSize));page=Math.min(page,pages);
+ const items=rows.slice((page-1)*pageSize,page*pageSize),fragment=document.createDocumentFragment();
+ for(const row of items){
+  const tr=document.createElement("tr");
+  for(const [key,,cls] of columns){
+   const td=document.createElement("td");td.className=cls;
+   if(key==="title"&&row.url){
+    const a=document.createElement("a");a.className="song-link";
+    a.href=row.url;a.target="_blank";a.rel="noopener noreferrer";
+    a.textContent=display(key,row[key]);
+    td.append(a);
+    td.title=a.textContent+" · 点击打开视频页面";
+   }else{
+    td.textContent=display(key,row[key]);
+    if(key==="title")td.title=td.textContent+" · "+row.key;
+   }
+   if((key==="first"||key==="last")&&/^\d{4}-\d{2}-\d{2}$/.test(row[key]||"")){
+    td.classList.add("date-jump");
+    td.title=`点击跳转到 ${row[key]} 的时间线`;
+    td.tabIndex=0;
+    const jump=()=>{selectDate(row[key],true,row.world+"|"+row.key);el("timeline-section").scrollIntoView({behavior:"smooth",block:"start"});};
+    td.onclick=jump;
+    td.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();jump();}};
+   }
+   tr.append(td);
+  }
+  fragment.append(tr);
+ }
+ el("body").replaceChildren(fragment);el("empty").hidden=!!rows.length;
+ for(const [key,{th,arrow}] of headers){arrow.textContent=key===sortKey?(direction===1?"↑":"↓"):"";th.setAttribute("aria-sort",key===sortKey?(direction===1?"ascending":"descending"):"none")}
+ el("page").textContent=page+" / "+pages;el("prev").disabled=page===1;el("next").disabled=page===pages;
+ el("result").textContent=rows.length?"第 "+format.format((page-1)*pageSize+1)+"–"+format.format((page-1)*pageSize+items.length)+" 项，共 "+format.format(rows.length)+" 项":"共 0 项";
+ document.querySelector(".scroll").scrollTop=0;
+}
+
+function updateNowMarker(){
+ const track=el("hour-track");
+ const existing=track.querySelector(".hour-now");
+ const {date:today,seconds:nowSec}=tokyoParts();
+ if(selectedDate===today){
+  const marker=existing||Object.assign(document.createElement("div"),{className:"hour-now"});
+  marker.style.left=(nowSec/86400*100).toFixed(3)+"%";
+  marker.title=`现在 ${secondsToHM(nowSec)} (UTC+9)`;
+  if(!existing)track.append(marker);
+  if(!dayStats.has(selectedDate))el("hour-span").textContent=`当前时刻 ${secondsToHM(nowSec)}`;
+ }else if(existing){
+  existing.remove();
+ }
+}
+
+function show(data){
+ const changed=!dataPacket||dataPacket.revision!==data.revision;dataPacket=data;
+ if(STATIC){
+  const g=data.published||(data.summary&&data.summary.generated)||"";
+  el("status").textContent=g?"数据同步于 "+g.replace("T"," ").slice(0,16)+"（东京时间）· 每日更新":"每日同步的 VRCX 数据";
+  el("status").dataset.live="true";
+ }else{
+  const status=data.live?"已连接 VRCX · 每 10 秒更新":"VRCX 暂不可读 · 显示上次保存的统计";
+  el("status").textContent=status;el("status").dataset.live=String(data.live);
+ }
+ if(changed){
+  showView(false);
+ }else if(selectedDate===tokyoParts().date){
+  updateNowMarker();
+ }
+}
+
+function showView(worldChanged=false){
+ packet=selectedWorld?dataPacket.worlds[selectedWorld]:dataPacket;
+ const s=packet.summary;
+ el("scope").textContent=s.first?s.first+" — "+s.last:"";
+ for(const [id,value] of [["plays",s.count],["tracks",s.total_tracks],["days",s.days]])el(id).textContent=format.format(value);
+ el("hours").textContent=s.hours.toFixed(1);
+ const selected=el("category").value,options=[new Option("全部分类","")];
+ for(const cat of [...new Set(packet.rows.map(r=>r.category).filter(Boolean))].sort())options.push(new Option(cat,cat));
+ el("category").replaceChildren(...options);el("category").value=options.some(o=>o.value===selected)?selected:"";
+ el("export").disabled=false;
+ rebuildTimelineIndex(worldChanged);
+ renderCalendar();
+ renderTimeline();
+ render();
+}
+
+el("cal-prev").onclick=()=>{calMonth--;if(calMonth<1){calMonth=12;calYear--;}renderCalendar();};
+el("cal-next").onclick=()=>{calMonth++;if(calMonth>12){calMonth=1;calYear++;}renderCalendar();};
+el("cal-year").onchange=()=>{calYear=Number(el("cal-year").value);renderCalendar();};
+el("cal-month").onchange=()=>{calMonth=Number(el("cal-month").value);renderCalendar();};
+el("date-jump").onchange=()=>{if(el("date-jump").value)selectDate(el("date-jump").value,true,null);};
+el("btn-latest").onclick=()=>{if(activeDays.length)selectDate(activeDays[activeDays.length-1],false,null);};
+el("btn-today").onclick=()=>selectDate(tokyoParts().date,true,null);
+el("tl-order").onclick=()=>{tlDesc=!tlDesc;renderTimeline();};
+
+async function refresh(){
+ try{const res=await fetch(DATA_URL,{cache:"no-store"});if(!res.ok)throw Error();show(await res.json())}
+ catch{el("status").textContent=packet?"连接中断 · 已保留当前排行":(STATIC?"无法加载舞蹈数据 · 请稍后刷新":"无法读取统计 · 请重新双击「打开舞蹈统计」");el("status").dataset.live="false"}
+ finally{setTimeout(refresh,STATIC?1800000:10000)}
+}
+el("search").oninput=el("category").onchange=()=>{page=1;render()};
+el("prev").onclick=()=>{page--;render()};el("next").onclick=()=>{page++;render()};
+el("export").onclick=async()=>{
+ const btn=el("export");btn.disabled=true;btn.textContent="正在生成 Excel…";el("notice").textContent="";
+ try{const res=await fetch(EXCEL_URL,{cache:"no-store"});if(!res.ok)throw Error();const url=URL.createObjectURL(await res.blob());const a=document.createElement("a");a.href=url;a.download="VRChat 舞蹈统计.xlsx";a.click();setTimeout(()=>URL.revokeObjectURL(url),30000)}
+ catch{el("notice").textContent="Excel 导出失败，请重新打开本地入口后再试。"}
+ finally{btn.disabled=false;btn.textContent="导出全部 Excel ↓"}
+};
+refresh();
+</script></body></html>
